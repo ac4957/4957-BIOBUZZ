@@ -4,6 +4,7 @@ import static com.pedropathing.api.Paths.line;
 import static com.pedropathing.ivy.groups.Groups.sequential;
 import static com.pedropathing.ivy.pedro.PedroCommands.follow;
 
+import com.pedropathing.api.PoseFactory;
 import com.pedropathing.follower.Follower;
 import com.pedropathing.ivy.Scheduler;
 import com.pedropathing.math.Pose;
@@ -21,7 +22,7 @@ import java.util.Timer;
 @Autonomous(name = "i have so many problems")
 public class iHaveSoManyProblems extends OpMode {
     private Follower follower;
-    private int state = 0;
+    private final PoseFactory p = PoseFactory.degrees();
     private int shotsFired = 0;
 
     private DcMotorEx launcher;
@@ -33,8 +34,6 @@ public class iHaveSoManyProblems extends OpMode {
     private final Pose shootPose = new Pose(56, 20, Math.toRadians(110));  // temporary, pray that we can code it to shoot from ANYWHERE!!!
     private final Pose parkPose  = new Pose(40, 36, Math.toRadians(90));   // out of the way for teleop
 
-    private Path toShoot, toPark;
-
     private Path park(){
         return line(startPose, parkPose).linear(startPose, parkPose); // change start pose to current position later
     }
@@ -45,50 +44,16 @@ public class iHaveSoManyProblems extends OpMode {
     private Command autoRoutine(){
         return sequential(
             follow(follower, getToShoot()),
-                follow(follower, park())
+            shoot(),
+            follow(follower, park())
         );
     }
 
-
-
-    /*private void autoUpdate() {
-        switch (state) {
-            case 0: // drive to shooting spot while spinning up
-                launcher.setVelocity(LAUNCH_VELOCITY);
-                follower.followPath(toShoot, true);   // true = hold end pose
-                setState(1);
-                break;
-
-            case 1: // wait for arrival and launcher at speed
-                if (!follower.isBusy()
-                        && Math.abs(launcher.getVelocity() - LAUNCH_VELOCITY) < 50) {
-                    setState(2);
-                }
-                break;
-
-            case 2: // push feeder
-                feeder.setPosition(1.0);
-                if (pathTimer.getElapsedTimeSeconds() > 0.25) setState(3);
-                break;
-
-            case 3: // retract, then either shoot again or leave
-                feeder.setPosition(0.0);
-                if (pathTimer.getElapsedTimeSeconds() > 0.35) {
-                    shotsFired++;
-                    setState(shotsFired < 4 ? 2 : 4);
-                }
-                break;
-
-            case 4: // park
-                launcher.setVelocity(0);
-                follower.followPath(toPark, true);
-                setState(5);
-                break;
-
-            case 5: // done
-                break;
-        }
-    }*/
+    private Command shoot(){
+        return sequential(
+                //shoot
+        );
+    }
 
     @Override
     public void init() {
@@ -105,7 +70,6 @@ public class iHaveSoManyProblems extends OpMode {
         follower.update();
         autoRoutine();
 
-        telemetry.addData("state", state);
         telemetry.addData("shots", shotsFired);
         telemetry.addData("x", follower.pose().x());
         telemetry.addData("y", follower.pose().y());
