@@ -217,7 +217,7 @@ public class ShotCalculator {
     }
 
     /**
-     * For later: once you've tuned real values on the field, use this instead of the physics.
+     * For later: once we've tuned real values on the field, use this instead of the physics.
      * distances must be sorted smallest to largest; values[i] is what worked at distances[i].
      * Make one table per ball type for hood angle and one for pullback.
      */
