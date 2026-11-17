@@ -53,7 +53,7 @@ public class ShotCalculator {
     public static double SHOOTER_OFFSET_Y = 0.0;
 
     /** How steeply the ball should come down into the cell (negative = falling). */
-    public static double ENTRY_ANGLE_DEG = -40.0;
+    public static double ENTRY_ANGLE_DEG = -50.0;
 
     /** The lowest and highest angles the hood can physically reach. */
     public static double MIN_HOOD_DEG = 40.0;
