@@ -1,80 +1,155 @@
 package org.firstinspires.ftc.teamcode.opmodes.autonomous;
 
+import static com.pedropathing.api.Paths.curve;
 import static com.pedropathing.api.Paths.line;
-import static com.pedropathing.ivy.groups.Groups.sequential;
-import static com.pedropathing.ivy.pedro.PedroCommands.follow;
 
 import com.pedropathing.api.PoseFactory;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.ivy.Scheduler;
 import com.pedropathing.math.Pose;
 import com.pedropathing.paths.Path;
+
+import com.seattlesolvers.solverslib.command.CommandOpMode;
+import com.seattlesolvers.solverslib.command.SequentialCommandGroup;
+import com.seattlesolvers.solverslib.command.WaitCommand;
+import com.seattlesolvers.solverslib.command.InstantCommand;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
-import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.hardware.DcMotorEx;
-import com.qualcomm.robotcore.hardware.Servo;
-import com.pedropathing.ivy.Command;
+import com.seattlesolvers.solverslib.pedroCommand.FollowPathCommand;
+import com.seattlesolvers.solverslib.util.TelemetryData;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
+import org.firstinspires.ftc.teamcode.subsystems.intake.Intake;
 
-import java.util.Timer;
+import org.firstinspires.ftc.teamcode.subsystems.shooter.Shooter;
 
-@Autonomous(name = "i have so many problems")
-public class iHaveSoManyProblems extends OpMode {
+@Autonomous
+public class iHaveSoManyProblems extends CommandOpMode {
     private Follower follower;
+    private Intake intake;
+    private Shooter shooter;
+    TelemetryData telemetryData = new TelemetryData(telemetry);
+
+    // Poses (headings in degrees)
     private final PoseFactory p = PoseFactory.degrees();
-    private int shotsFired = 0;
+    private final Pose startPose = p.of(9, 111, -90);
+    private final Pose scorePose = p.of(16, 128, -45);
+    private final Pose pickup1Pose = p.of(30, 121, 0);
+    private final Pose pickup2Pose = p.of(30, 131, 0);
+    private final Pose pickup3Pose = p.of(45, 128, 90);
+    private final Pose parkPose = p.of(68, 96, -90);
 
-    private DcMotorEx launcher;
-    private Servo feeder;
-    static final double LAUNCH_VELOCITY = 1800;  // tune
+    // Paths
+    private Path scorePreload, grabPickup1, grabPickup2, grabPickup3;
+    private Path scorePickup1, scorePickup2, scorePickup3, park;
 
-    // Pedro field coords: 0–144 in, origin at a field corner. Measure your real values.
-    private final Pose startPose = new Pose(56, 8, Math.toRadians(90));    // against wall, facing hive
-    private final Pose shootPose = new Pose(56, 20, Math.toRadians(110));  // temporary, pray that we can code it to shoot from ANYWHERE!!!
-    private final Pose parkPose  = new Pose(40, 36, Math.toRadians(90));   // out of the way for teleop
+    public void buildPaths() {
+        scorePreload = line(startPose, scorePose)
+                .linear(startPose, scorePose);
 
-    private Path park(){
-        return line(startPose, parkPose).linear(startPose, parkPose); // change start pose to current position later
+        grabPickup1 = line(scorePose, pickup1Pose)
+                .linear(scorePose, pickup1Pose);
+
+        scorePickup1 = line(pickup1Pose, scorePose)
+                .linear(pickup1Pose, scorePose);
+
+        grabPickup2 = line(scorePose, pickup2Pose)
+                .linear(scorePose, pickup2Pose);
+
+        scorePickup2 = line(pickup2Pose, scorePose)
+                .linear(pickup2Pose, scorePose);
+
+        grabPickup3 = line(scorePose, pickup3Pose)
+                .linear(scorePose, pickup3Pose);
+
+        scorePickup3 = line(pickup3Pose, scorePose)
+                .linear(pickup3Pose, scorePose);
+
+        park = curve(
+                scorePose,
+                p.of(68, 110, 0), // Control point
+                parkPose
+        ).linear(scorePose, parkPose);
     }
-    private Path getToShoot(){
-        return line(startPose, shootPose).linear(startPose, shootPose);
+
+    private InstantCommand runIntake() {
+        return new InstantCommand(() -> {
+            intake.takeIn();
+        });
     }
 
-    private Command autoRoutine(){
-        return sequential(
-            follow(follower, getToShoot()),
-            shoot(),
-            follow(follower, park())
-        );
+    private InstantCommand reverseIntake() {
+        return new InstantCommand(() -> {
+            intake.takeOut();
+        });
     }
 
-    private Command shoot(){
-        return sequential(
-                //shoot
-        );
+    private InstantCommand shootBall() {
+        return new InstantCommand(() -> {
+            // run shooter
+        });
+    }
+
+    private InstantCommand park() {
+        return new InstantCommand(() -> {
+            // nil
+        });
     }
 
     @Override
-    public void init() {
-        launcher = hardwareMap.get(DcMotorEx.class, "launcher");
-        feeder = hardwareMap.get(Servo.class, "feeder");
+    public void initialize() {
+        super.reset();
 
-        follower = Constants.createFollower(hardwareMap);  // from your Pedro tuning setup
-        autoRoutine();
+        // Initialize follower
+        follower = Constants.createFollower(hardwareMap);
+        intake = new Intake(hardwareMap);
+
         follower.setPose(startPose);
+        buildPaths();
+
+        // Create the autonomous command sequence
+        SequentialCommandGroup autonomousSequence = new SequentialCommandGroup(
+                // Score preload
+                new FollowPathCommand(follower, scorePreload),
+                shootBall(),
+                new WaitCommand(1000), // Wait 1 second
+
+                // First pickup cycle
+                new FollowPathCommand(follower, grabPickup1).setGlobalMaxPower(0.5), // Limits this and all future paths (of this follower)
+                // to 50% of max speed, unless a custom maxPower is given
+                runIntake(),
+                new FollowPathCommand(follower, scorePickup1),
+                shootBall(),
+
+                // Second pickup cycle
+                new FollowPathCommand(follower, grabPickup2),
+                runIntake(),
+                new FollowPathCommand(follower, scorePickup2, 1.0), // Overrides maxPower to 100% for this path only
+                shootBall(),
+
+                // Third pickup cycle
+                new FollowPathCommand(follower, grabPickup3),
+                runIntake(),
+                new FollowPathCommand(follower, scorePickup3),
+                shootBall(),
+
+                // Park
+                new FollowPathCommand(follower, park, false), // park with holdEnd false
+                park()
+        );
+
+        // Schedule the autonomous sequence
+        schedule(autonomousSequence);
     }
 
     @Override
-    public void loop() {
-        follower.update();
-        autoRoutine();
+    public void run() {
+        super.run();
 
-        telemetry.addData("shots", shotsFired);
-        telemetry.addData("x", follower.pose().x());
-        telemetry.addData("y", follower.pose().y());
-        telemetry.addData("heading", Math.toDegrees(follower.pose().heading()));
-        telemetry.update();
+        // The follower needs to be updated every loop
+        follower.update();
+
+        telemetryData.addData("X", follower.pose().x());
+        telemetryData.addData("Y", follower.pose().y());
+        telemetryData.addData("Heading", follower.pose().heading());
+        telemetryData.update();
     }
 }
-
